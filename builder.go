@@ -336,6 +336,7 @@ func (b *Builder) insert() string {
 		b.tableName(),
 		strings.Join(bsql.Fields2Columns(cols), ","),
 		bsql.StructValues(b.values, cols),
+		b.onConflict,
 		b.buildReturning(),
 	)
 }
@@ -349,6 +350,7 @@ func (b *Builder) update() string {
 		b.buildWhere(),
 		b.buildOrder(),
 		b.buildLimit(),
+		b.onConflict,
 		b.buildReturning(),
 	}, " ")
 }
@@ -366,6 +368,7 @@ func (b *Builder) delete() string {
 		where,
 		b.buildOrder(),
 		b.buildLimit(),
+		b.onConflict,
 		b.buildReturning(),
 	}, " ")
 }
