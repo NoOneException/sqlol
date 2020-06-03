@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lovego/bsql"
@@ -32,9 +31,7 @@ type Builder struct {
 }
 
 func NewBuilder() *Builder {
-	builder := pool.Get().(*Builder)
-	builder.Clear()
-	return builder
+	return &Builder{ConditionBuilder: ConditionBuilder{}}
 }
 
 func (b *Builder) Clone() *Builder {
@@ -108,10 +105,9 @@ func (b *Builder) Select(table string) *Builder {
 	return b
 }
 
-func (b *Builder) SelectSubQuery(subQueryBuilder *Builder) *Builder {
+func (b *Builder) SelectSubQuery(subQuery string) *Builder {
 	b.manipulation = manipulationSelect
-	sub := subQueryBuilder.Build()
-	b.table = "(" + sub + ")"
+	b.table = "(" + subQuery + ")"
 	return b
 }
 
@@ -153,7 +149,6 @@ func (b *Builder) StrategyFuncs(
 }
 
 func (b *Builder) Build() string {
-	defer pool.Put(b)
 	if b.table == "" {
 		log.Panic("sql builder: table is required")
 		return ""
@@ -537,9 +532,3 @@ const (
 	TimeLayout = "2006-01-02 15:04:05"
 	DateLayout = "2006-01-02"
 )
-
-var pool = &sync.Pool{
-	New: func() interface{} {
-		return &Builder{ConditionBuilder: ConditionBuilder{}}
-	},
-}
