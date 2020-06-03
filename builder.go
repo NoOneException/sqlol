@@ -452,7 +452,7 @@ func (b *Builder) Equal(dbField string, value interface{}) *Builder {
 }
 
 func (b *Builder) TryEqual(dbField string, value interface{}) *Builder {
-	b.ConditionBuilder.Equal(dbField, value)
+	b.ConditionBuilder.TryEqual(dbField, value)
 	return b
 }
 
