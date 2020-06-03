@@ -34,6 +34,20 @@ func (b *ConditionBuilder) Where(strs ...string) *ConditionBuilder {
 	return b
 }
 
+func (b *ConditionBuilder) WhereMap(where map[string]interface{}) *ConditionBuilder {
+	for k, v := range where {
+		b.Equal(k, v)
+	}
+	return b
+}
+
+func (b *ConditionBuilder) TryMap(where map[string]interface{}) *ConditionBuilder {
+	for k, v := range where {
+		b.TryEqual(k, v)
+	}
+	return b
+}
+
 //添加多个OR条件
 func (b *ConditionBuilder) Or(strs ...string) *ConditionBuilder {
 	var cons []string
@@ -50,6 +64,9 @@ func (b *ConditionBuilder) Or(strs ...string) *ConditionBuilder {
 
 // 添加相等条件
 func (b *ConditionBuilder) Equal(dbField string, value interface{}) *ConditionBuilder {
+	if value == nil {
+		return b.Where(fmt.Sprintf("%s IS NULL", dbField))
+	}
 	return b.Where(fmt.Sprintf("%s = %s", dbField, bsql.V(value)))
 }
 
