@@ -276,8 +276,8 @@ func (b *Builder) InnerJoin(table, as, on string) *Builder {
 	return b.Join("INNER", table, as, on)
 }
 
-func (b *Builder) GroupBy(group string) *Builder {
-	b.groupBy = append(b.groupBy, group)
+func (b *Builder) GroupBy(group ...string) *Builder {
+	b.groupBy = append(b.groupBy, group...)
 	return b
 }
 

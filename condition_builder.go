@@ -72,18 +72,8 @@ func (b *ConditionBuilder) Equal(dbField string, value interface{}) *ConditionBu
 
 // 添加相等条件，value为零值时跳过
 func (b *ConditionBuilder) TryEqual(dbField string, value interface{}) *ConditionBuilder {
-	if value == nil ||
-		value == "" ||
-		value == 0 ||
-		value == false {
+	if isEmpty(value) {
 		return b
-	}
-	v := reflect.ValueOf(value)
-	kind := v.Kind()
-	if kind == reflect.Array || kind == reflect.Slice {
-		if v.Len() == 0 {
-			return b
-		}
 	}
 	return b.Equal(dbField, value)
 }
@@ -243,4 +233,23 @@ func sliceValue(values interface{}) string {
 		s = append(s, bsql.V(v.Index(i).Interface()))
 	}
 	return strings.Join(s, ",")
+}
+
+func isEmpty(value interface{}) bool {
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.String, reflect.Array, reflect.Slice:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return v.IsNil()
+	}
+	return reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 }
