@@ -168,6 +168,47 @@ func (b *Builder) Build() string {
 	}
 }
 
+func (b *Builder) BuildCount() string {
+	if b.table == "" {
+		log.Panic("sql builder: table is required")
+		return ""
+	}
+	if b.manipulation != manipulationSelect {
+		log.Panic("sql builder: must be a select operation")
+		return ""
+	}
+	if len(b.groupBy) == 0 {
+		return strings.Join([]string{
+			b.manipulation,
+			"COUNT(1) FROM",
+			b.tableName(),
+			b.buildJoin(),
+			b.buildWhere(),
+		}, " ")
+	}
+	if len(b.groupBy) == 1 &&
+		b.having == "" &&
+		!strings.Contains(b.groupBy[0], ",") {
+		return strings.Join([]string{
+			b.manipulation,
+			fmt.Sprintf("COUNT(DISTINCT %s) FROM", b.groupBy[0]),
+			b.tableName(),
+			b.buildJoin(),
+			b.buildWhere(),
+		}, " ")
+	}
+	subSql := strings.Join([]string{
+		b.selectFields(),
+		"FROM",
+		b.tableName(),
+		b.buildJoin(),
+		b.buildWhere(),
+		b.buildGroup(),
+		b.buildHaving(),
+	}, " ")
+	return fmt.Sprintf(`SELECT count(1) FROM (%s) AS T`, subSql)
+}
+
 func (b *Builder) buildWhere() string {
 	condition := b.ConditionBuilder.Build()
 	if condition != "" {
