@@ -17,8 +17,8 @@ type Builder struct {
 	groupBy          []string
 	orderBy          []string
 	having           string
-	limit            int
-	offset           int
+	limit            int64
+	offset           int64
 	isForUpdate      bool
 	fields           []string
 	cols             []string
@@ -121,12 +121,12 @@ func (b *Builder) OrderBy(order string) *Builder {
 	return b
 }
 
-func (b *Builder) Limit(limit int) *Builder {
+func (b *Builder) Limit(limit int64) *Builder {
 	b.limit = limit
 	return b
 }
 
-func (b *Builder) Offset(offset int) *Builder {
+func (b *Builder) Offset(offset int64) *Builder {
 	b.offset = offset
 	return b
 }
