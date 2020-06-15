@@ -134,7 +134,9 @@ func (b *Builder) Offset(offset int64) *Builder {
 // 添加自定义sql策略 Strategy接口形式
 func (b *Builder) Strategies(strategies ...Strategy) *Builder {
 	for _, strategy := range strategies {
-		strategy.Execute(b)
+		if strategy != nil {
+			strategy.Execute(b)
+		}
 	}
 	return b
 }
@@ -144,7 +146,9 @@ type StrategyFunc func(b *Builder)
 // 添加自定义sql策略 回调函数形式
 func (b *Builder) StrategyFuncs(strategyFuncs ...StrategyFunc) *Builder {
 	for _, strategyFunc := range strategyFuncs {
-		strategyFunc(b)
+		if strategyFunc != nil {
+			strategyFunc(b)
+		}
 	}
 	return b
 }
