@@ -116,8 +116,8 @@ func (b *Builder) Alias(alias string) *Builder {
 	return b
 }
 
-func (b *Builder) OrderBy(order string) *Builder {
-	b.orderBy = append(b.orderBy, order)
+func (b *Builder) OrderBy(order ...string) *Builder {
+	b.orderBy = append(b.orderBy, order...)
 	return b
 }
 
@@ -139,9 +139,10 @@ func (b *Builder) Strategies(strategies ...Strategy) *Builder {
 	return b
 }
 
+type StrategyFunc func(b *Builder)
+
 // 添加自定义sql策略 回调函数形式
-func (b *Builder) StrategyFuncs(
-	strategyFuncs ...func(b *Builder)) *Builder {
+func (b *Builder) StrategyFuncs(strategyFuncs ...StrategyFunc) *Builder {
 	for _, strategyFunc := range strategyFuncs {
 		strategyFunc(b)
 	}
@@ -368,7 +369,7 @@ func (b *Builder) insert() string {
 		log.Panic("sql builder: inserting fields are required")
 		return ""
 	}
-	return fmt.Sprintf("INSERT INTO %s(%s) VALUES %s %s",
+	return fmt.Sprintf("INSERT INTO %s(%s) VALUES %s %s %s",
 		b.tableName(),
 		strings.Join(bsql.Fields2Columns(cols), ","),
 		bsql.StructValues(b.values, cols),
@@ -433,8 +434,8 @@ func (b *Builder) buildReturning() string {
 func (b *Builder) insertCols() []string {
 	cols := b.cols
 	if len(cols) == 0 {
-		strct := b.values[0]
-		cols = bsql.FieldsFromStruct(strct,
+		s := b.values[0]
+		cols = bsql.FieldsFromStruct(s,
 			[]string{"Id", "UpdatedBy", "UpdatedAt"})
 	}
 	return cols
