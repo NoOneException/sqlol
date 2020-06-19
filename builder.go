@@ -256,8 +256,8 @@ func (b *Builder) query() string {
 		b.buildJoin(),
 		b.buildWhere(),
 		b.buildGroup(),
-		b.buildOrder(),
 		b.buildHaving(),
+		b.buildOrder(),
 		b.buildLimit(),
 		b.buildForUpdate(),
 	}, " ")
