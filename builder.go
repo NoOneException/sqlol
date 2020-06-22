@@ -363,6 +363,11 @@ func (b *Builder) Values(values []interface{}) *Builder {
 	return b
 }
 
+func (b *Builder) Value(value interface{}) *Builder {
+	b.values = []interface{}{value}
+	return b
+}
+
 func (b *Builder) insert() string {
 	if len(b.values) == 0 {
 		log.Panic("sql builder: inserting values are required")
