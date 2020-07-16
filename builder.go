@@ -3,6 +3,7 @@ package sqlol
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 	"time"
 
@@ -24,7 +25,7 @@ type Builder struct {
 	cols             []string
 	returning        []string
 	onConflict       string
-	values           []interface{}
+	values           interface{}
 	updates          []string
 	updateStruct     interface{}
 	ConditionBuilder ConditionBuilder
@@ -35,8 +36,6 @@ func NewBuilder() *Builder {
 }
 
 func (b *Builder) Clone() *Builder {
-	values := make([]interface{}, len(b.values))
-	copy(values, b.values)
 	return &Builder{
 		manipulation: b.manipulation,
 		table:        b.table,
@@ -52,7 +51,7 @@ func (b *Builder) Clone() *Builder {
 		cols:         copyStringSlice(b.cols),
 		returning:    copyStringSlice(b.returning),
 		onConflict:   b.onConflict,
-		values:       values,
+		values:       b.values,
 		updates:      copyStringSlice(b.updates),
 		updateStruct: b.updateStruct,
 		ConditionBuilder: ConditionBuilder{
@@ -155,7 +154,7 @@ func (b *Builder) StrategyFuncs(strategyFuncs ...StrategyFunc) *Builder {
 
 func (b *Builder) Build() string {
 	if b.table == "" {
-		log.Panic("sql builder: table is required")
+		log.Panic("sqlol: table is required")
 		return ""
 	}
 	switch b.manipulation {
@@ -168,18 +167,18 @@ func (b *Builder) Build() string {
 	case manipulationDelete:
 		return b.delete()
 	default:
-		log.Panic("sql builder: wrong manipulation")
+		log.Panic("sqlol: wrong manipulation")
 		return ""
 	}
 }
 
 func (b *Builder) BuildCount() string {
 	if b.table == "" {
-		log.Panic("sql builder: table is required")
+		log.Panic("sqlol: table is required")
 		return ""
 	}
 	if b.manipulation != manipulationSelect {
-		log.Panic("sql builder: must be a select operation")
+		log.Panic("sqlol: must be a select operation")
 		return ""
 	}
 	if len(b.groupBy) == 0 {
@@ -211,7 +210,7 @@ func (b *Builder) BuildCount() string {
 		b.buildGroup(),
 		b.buildHaving(),
 	}, " ")
-	return fmt.Sprintf(`SELECT count(1) FROM (%s) AS T`, subSql)
+	return fmt.Sprintf(`SELECT count(1) FROM (%s) AS sqlolcount`, subSql)
 }
 
 func (b *Builder) buildWhere() string {
@@ -348,7 +347,7 @@ func (b *Builder) Set(data ...string) *Builder {
 func (b *Builder) SetMap(data map[string]interface{}) *Builder {
 	for k, v := range data {
 		b.updates = append(b.updates,
-			fmt.Sprintf("%s = %s", k, bsql.V(v)))
+			fmt.Sprintf("%s = %s", k, ToString(v)))
 	}
 	return b
 }
@@ -358,29 +357,24 @@ func (b *Builder) SetStruct(data interface{}) *Builder {
 	return b
 }
 
-func (b *Builder) Values(values []interface{}) *Builder {
+func (b *Builder) Values(values interface{}) *Builder {
 	b.values = values
 	return b
 }
 
-func (b *Builder) Value(value interface{}) *Builder {
-	b.values = []interface{}{value}
-	return b
-}
-
 func (b *Builder) insert() string {
-	if len(b.values) == 0 {
+	if b.values == nil {
 		log.Panic("sql builder: inserting values are required")
 		return ""
 	}
 	cols := b.insertCols()
 	if len(cols) == 0 {
-		log.Panic("sql builder: inserting fields are required")
+		log.Panic("sqlol: inserting fields are required")
 		return ""
 	}
 	return fmt.Sprintf("INSERT INTO %s(%s) VALUES %s %s %s",
 		b.tableName(),
-		strings.Join(bsql.Fields2Columns(cols), ","),
+		strings.Join(CamelsToSnakes(cols), ","),
 		bsql.StructValues(b.values, cols),
 		b.onConflict,
 		b.buildReturning(),
@@ -396,7 +390,6 @@ func (b *Builder) update() string {
 		b.buildWhere(),
 		b.buildOrder(),
 		b.buildLimit(),
-		b.onConflict,
 		b.buildReturning(),
 	}, " ")
 }
@@ -404,7 +397,7 @@ func (b *Builder) update() string {
 func (b *Builder) delete() string {
 	where := b.buildWhere()
 	if where == "" {
-		log.Panic("sql builder: deleting condition are required")
+		log.Panic("sqlol: deleting condition is required")
 		return ""
 	}
 	return strings.Join([]string{
@@ -414,7 +407,6 @@ func (b *Builder) delete() string {
 		where,
 		b.buildOrder(),
 		b.buildLimit(),
-		b.onConflict,
 		b.buildReturning(),
 	}, " ")
 }
@@ -423,11 +415,11 @@ func (b *Builder) buildUpdates() string {
 	if b.updateStruct != nil {
 		cols := b.updateCols()
 		return fmt.Sprintf("(%s) = %s",
-			strings.Join(bsql.Fields2Columns(cols), ","),
-			bsql.StructValues([]interface{}{b.updateStruct}, cols))
+			strings.Join(CamelsToSnakes(cols), ","),
+			bsql.StructValues(b.updateStruct, cols))
 	}
 	if len(b.updates) == 0 {
-		log.Panic("sql builder: updating values are required")
+		log.Panic("sqlol: updating values are required")
 		return ""
 	}
 	return strings.Join(b.updates, ",")
@@ -437,13 +429,20 @@ func (b *Builder) buildReturning() string {
 	if len(b.returning) == 0 {
 		return ""
 	}
-	return strings.Join(b.returning, ",")
+	return `RETURNING ` + strings.Join(b.returning, ",")
 }
 
 func (b *Builder) insertCols() []string {
 	cols := b.cols
 	if len(cols) == 0 {
-		s := b.values[0]
+		var s interface{}
+		value := reflect.ValueOf(b.values)
+		switch value.Kind() {
+		case reflect.Slice, reflect.Array:
+			s = value.Index(0).Interface()
+		default:
+			s = b.values
+		}
 		cols = bsql.FieldsFromStruct(s,
 			[]string{"Id", "UpdatedBy", "UpdatedAt"})
 	}
@@ -566,12 +565,6 @@ func (b *Builder) TryTimeRange(dbField string, startTime, endTime time.Time) *Bu
 func (b *Builder) TryDateRange(dbField string, startDate, endDate time.Time) *Builder {
 	b.ConditionBuilder.TryDateRange(dbField, startDate, endDate)
 	return b
-}
-
-func copyStringSlice(src []string) []string {
-	res := make([]string, len(src))
-	copy(res, src)
-	return res
 }
 
 const (

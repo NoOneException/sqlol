@@ -2,11 +2,8 @@ package sqlol
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
-
-	"github.com/lovego/bsql"
 )
 
 type ConditionBuilder struct {
@@ -67,7 +64,7 @@ func (b *ConditionBuilder) Equal(dbField string, value interface{}) *ConditionBu
 	if value == nil {
 		return b.Where(fmt.Sprintf("%s IS NULL", dbField))
 	}
-	return b.Where(fmt.Sprintf("%s = %s", dbField, bsql.V(value)))
+	return b.Where(fmt.Sprintf("%s = %s", dbField, ToString(value)))
 }
 
 // 添加相等条件，value为零值时跳过
@@ -81,7 +78,7 @@ func (b *ConditionBuilder) TryEqual(dbField string, value interface{}) *Conditio
 // 添加LIKE条件，左右模糊匹配，
 // 如果需要单边模糊匹配，请使用Where
 func (b *ConditionBuilder) Like(dbField, value string) *ConditionBuilder {
-	return b.Where(fmt.Sprintf("%s LIKE %s", dbField, bsql.Q("%"+value+"%")))
+	return b.Where(fmt.Sprintf("%s LIKE %s", dbField, String("%"+value+"%")))
 }
 
 // 添加LIKE条件，左右模糊匹配，value为零值时跳过
@@ -94,7 +91,7 @@ func (b *ConditionBuilder) TryLike(dbField string, value string) *ConditionBuild
 
 // 添加多个LIKE条件
 func (b *ConditionBuilder) MultiLike(dbFields []string, value string) *ConditionBuilder {
-	v := bsql.Q("%" + value + "%")
+	v := "%" + String(value) + "%"
 	var cons []string
 	for _, field := range dbFields {
 		cons = append(cons, fmt.Sprintf("%s LIKE %s", field, v))
@@ -114,7 +111,7 @@ func (b *ConditionBuilder) TryMultiLike(dbFields []string, value string) *Condit
 func (b *ConditionBuilder) Between(
 	dbField string, start, end interface{}) *ConditionBuilder {
 	return b.Where(fmt.Sprintf("%s BETWEEN %s AND %s",
-		dbField, bsql.V(start), bsql.V(end)))
+		dbField, ToString(start), ToString(end)))
 }
 
 // 添加IN条件
@@ -167,10 +164,10 @@ func (b *ConditionBuilder) TryTimeRange(
 		return b.Between(dbField, startTime, endTime)
 	}
 	if !startTime.IsZero() {
-		return b.Where(fmt.Sprintf("%s >= %s", dbField, bsql.V(startTime)))
+		return b.Where(fmt.Sprintf("%s >= %s", dbField, ToString(startTime)))
 	}
 	if !endTime.IsZero() {
-		return b.Where(fmt.Sprintf("%s <= %s", dbField, bsql.V(endTime)))
+		return b.Where(fmt.Sprintf("%s <= %s", dbField, ToString(endTime)))
 	}
 	return b
 }
@@ -213,43 +210,4 @@ func buildAnyCondition(field string, values interface{}) string {
 		}
 		return ""
 	}
-}
-
-func sliceValue(values interface{}) string {
-	if values == nil {
-		return ""
-	}
-	v := reflect.ValueOf(values)
-	kind := v.Kind()
-	if kind != reflect.Array && kind != reflect.Slice {
-		return ""
-	}
-	vLen := v.Len()
-	if vLen == 0 {
-		return ""
-	}
-	var s []string
-	for i := 0; i < vLen; i++ {
-		s = append(s, bsql.V(v.Index(i).Interface()))
-	}
-	return strings.Join(s, ",")
-}
-
-func isEmpty(value interface{}) bool {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
-	case reflect.String, reflect.Array, reflect.Slice:
-		return v.Len() == 0
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
-		return v.IsNil()
-	}
-	return reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 }

@@ -54,8 +54,8 @@ func ExampleBuilder() {
 	// Insert
 	now, _ := time.Parse("2006-01-02 15:04:05", "2020-05-01 00:00:00")
 	builder = builder.Insert("a.tableA").
-		Values([]interface{}{
-			User{
+		Values([]User{
+			{
 				Name:      "a",
 				Age:       1,
 				IsAdmin:   true,
@@ -63,7 +63,7 @@ func ExampleBuilder() {
 				CreatedBy: 1,
 				CreatedAt: &now,
 			},
-			User{
+			{
 				Name:      "b",
 				Age:       10,
 				IsAdmin:   false,
@@ -74,9 +74,8 @@ func ExampleBuilder() {
 		})
 	// 如果需要限定只插入某些字段,使用Cols()方法
 	// builder.Cols("Name", "Age", "IsAdmin", "CreatedBy", "CreatedAt")
-	builder.Build()
 	fmt.Println("insert:")
-	fmt.Println(sql)
+	fmt.Println(builder.Build())
 	// print:
 	// INSERT INTO a.tableA(name,age,is_admin,remark,created_by,created_at)
 	// VALUES
