@@ -139,7 +139,7 @@ func (b *ConditionBuilder) NotIn(dbField string, values interface{}) *ConditionB
 }
 
 // 添加Any条件
-// values 可传类型：
+// structValues 可传类型：
 // 		string: 子查询sql
 // 		array/slice: 结果集，效果同In
 func (b *ConditionBuilder) Any(dbField string, values interface{}) *ConditionBuilder {

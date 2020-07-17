@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/lovego/struct_tag"
 )
 
 func CamelsToSnakes(fields []string) (result []string) {
@@ -59,7 +57,7 @@ func SnakeToCamel(s string) string {
 	return res
 }
 
-//
+// esc
 // For more details,refer to 4.1.2.1 String Constants on
 // https://www.postgresql.org/docs/9.5/sql-syntax-lexical.html
 func String(s string) string {
@@ -168,7 +166,7 @@ func sliceValue(values interface{}) string {
 func isEmpty(value interface{}) bool {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
-	case reflect.String, reflect.Array, reflect.Slice:
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
 	case reflect.Bool:
 		return !v.Bool()
@@ -190,8 +188,25 @@ func copyStringSlice(src []string) []string {
 	return res
 }
 
-func StructFields(obj interface{}) (fields []string) {
-	t := reflect.TypeOf(obj)
+func StringSliceDiff(source, exclude []string) []string {
+	excludeMap := make(map[string]bool)
+	for _, v := range exclude {
+		excludeMap[v] = true
+	}
+	var result []string
+	for _, v := range source {
+		if _, ok := excludeMap[v]; ok {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+func StructExportedFields(obj interface{}) (fields []string) {
+	return structExportedFields(reflect.TypeOf(obj))
+}
+
+func structExportedFields(t reflect.Type) (fields []string) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -201,12 +216,62 @@ func StructFields(obj interface{}) (fields []string) {
 	numField := t.NumField()
 	for i := 0; i < numField; i++ {
 		field := t.Field(i)
-		if (!field.Anonymous || StructFields(field.Type.Kind() == reflect.Struct) != nil) &&
-			(field.Name[0] >= 'A' && field.Name[0] <= 'Z') {
-			if value, ok := struct_tag.Lookup(string(field.Tag), `sql`); !ok || value != "-" {
-				fn(field)
+		if field.Anonymous {
+			fields = append(fields, structExportedFields(field.Type)...)
+		} else {
+			if field.Name[0] >= 'A' && field.Name[0] <= 'Z' {
+				fieldName := field.Tag.Get(`sql`)
+				if fieldName == "" {
+					fieldName = field.Name
+				}
+				fields = append(fields, fieldName)
 			}
 		}
 	}
-	return true
+	return
+}
+
+func StructValues(data interface{}, fields []string) string {
+	value := reflect.ValueOf(data)
+	switch value.Kind() {
+	case reflect.Slice, reflect.Array:
+		var slice []string
+		for i := 0; i < value.Len(); i++ {
+			slice = append(slice, structValues(value.Index(i), fields))
+		}
+		return strings.Join(slice, ",")
+	default:
+		return structValues(value, fields)
+	}
+}
+
+func structValues(value reflect.Value, fields []string) string {
+	if value.Kind() == reflect.Ptr || value.Kind() == reflect.Interface {
+		value = value.Elem()
+	}
+	if value.Kind() != reflect.Struct {
+		log.Panic("bsql: data must be struct or struct slice.")
+	}
+	var slice []string
+	for _, fieldName := range fields {
+		field := structField(value, fieldName)
+		if !field.IsValid() {
+			log.Panic("bsql: no field '" + fieldName + "' in struct")
+		}
+		slice = append(slice, ToString(field.Interface()))
+	}
+	return "(" + strings.Join(slice, ",") + ")"
+}
+
+func structField(strct reflect.Value, fieldName string) reflect.Value {
+	if strings.IndexByte(fieldName, '.') <= 0 {
+		return strct.FieldByName(fieldName)
+	}
+	for _, name := range strings.Split(fieldName, ".") {
+		strct = strct.FieldByName(name)
+		if !strct.IsValid() {
+			return strct
+		}
+	}
+	return strct
 }

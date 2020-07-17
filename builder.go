@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"time"
-
-	"github.com/lovego/bsql"
 )
 
 type Builder struct {
@@ -364,7 +362,7 @@ func (b *Builder) Values(values interface{}) *Builder {
 
 func (b *Builder) insert() string {
 	if b.values == nil {
-		log.Panic("sql builder: inserting values are required")
+		log.Panic("sql builder: inserting structValues are required")
 		return ""
 	}
 	cols := b.insertCols()
@@ -375,7 +373,7 @@ func (b *Builder) insert() string {
 	return fmt.Sprintf("INSERT INTO %s(%s) VALUES %s %s %s",
 		b.tableName(),
 		strings.Join(CamelsToSnakes(cols), ","),
-		bsql.StructValues(b.values, cols),
+		StructValues(b.values, cols),
 		b.onConflict,
 		b.buildReturning(),
 	)
@@ -416,10 +414,10 @@ func (b *Builder) buildUpdates() string {
 		cols := b.updateCols()
 		return fmt.Sprintf("(%s) = %s",
 			strings.Join(CamelsToSnakes(cols), ","),
-			bsql.StructValues(b.updateStruct, cols))
+			StructValues(b.updateStruct, cols))
 	}
 	if len(b.updates) == 0 {
-		log.Panic("sqlol: updating values are required")
+		log.Panic("sqlol: updating structValues are required")
 		return ""
 	}
 	return strings.Join(b.updates, ",")
@@ -443,8 +441,7 @@ func (b *Builder) insertCols() []string {
 		default:
 			s = b.values
 		}
-		cols = bsql.FieldsFromStruct(s,
-			[]string{"Id", "UpdatedBy", "UpdatedAt"})
+		cols = StringSliceDiff(StructExportedFields(s), []string{"Id", "UpdatedBy", "UpdatedAt"})
 	}
 	return cols
 }
@@ -452,8 +449,7 @@ func (b *Builder) insertCols() []string {
 func (b *Builder) updateCols() []string {
 	cols := b.cols
 	if len(cols) == 0 {
-		cols = bsql.FieldsFromStruct(b.updateStruct,
-			[]string{"CreatedBy", "CreatedAt"})
+		cols = StringSliceDiff(StructExportedFields(b.updateStruct), []string{"CreatedBy", "CreatedAt"})
 	}
 	return cols
 }
