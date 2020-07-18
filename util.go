@@ -57,7 +57,7 @@ func SnakeToCamel(s string) string {
 	return res
 }
 
-// esc
+//
 // For more details,refer to 4.1.2.1 String Constants on
 // https://www.postgresql.org/docs/9.5/sql-syntax-lexical.html
 func String(s string) string {
@@ -250,13 +250,13 @@ func structValues(value reflect.Value, fields []string) string {
 		value = value.Elem()
 	}
 	if value.Kind() != reflect.Struct {
-		log.Panic("bsql: data must be struct or struct slice.")
+		log.Panic("sqlol: data must be struct or struct slice.")
 	}
 	var slice []string
 	for _, fieldName := range fields {
 		field := structField(value, fieldName)
 		if !field.IsValid() {
-			log.Panic("bsql: no field '" + fieldName + "' in struct")
+			log.Panic("sqlol: no field '" + fieldName + "' in struct")
 		}
 		slice = append(slice, ToString(field.Interface()))
 	}
