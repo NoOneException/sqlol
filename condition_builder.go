@@ -91,7 +91,7 @@ func (b *ConditionBuilder) TryLike(dbField string, value string) *ConditionBuild
 
 // 添加多个LIKE条件
 func (b *ConditionBuilder) MultiLike(dbFields []string, value string) *ConditionBuilder {
-	v := "%" + String(value) + "%"
+	v := String("%" + value + "%")
 	var cons []string
 	for _, field := range dbFields {
 		cons = append(cons, fmt.Sprintf("%s LIKE %s", field, v))
@@ -108,8 +108,7 @@ func (b *ConditionBuilder) TryMultiLike(dbFields []string, value string) *Condit
 }
 
 // 添加BETWEEN条件
-func (b *ConditionBuilder) Between(
-	dbField string, start, end interface{}) *ConditionBuilder {
+func (b *ConditionBuilder) Between(dbField string, start, end interface{}) *ConditionBuilder {
 	return b.Where(fmt.Sprintf("%s BETWEEN %s AND %s",
 		dbField, ToString(start), ToString(end)))
 }
